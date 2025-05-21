@@ -1,0 +1,144 @@
+Former_Label,New_Label
+wheelchair_to_sitting_bed,Transfer
+wheelchair_to_sit,Transfer
+handling_oven,Unknown
+conversation,Talking
+exercising,Unknown
+petting_dog,Unknown
+not recognized,Unknown
+using_laptop,Using Computer
+wheelchair_to_sit_bed,Transfer
+using_pc,Using Computer
+wheelchair_to_bed,Transfer
+sit_to_wheelchair,Transfer
+using_phone,Using Phone
+reading_and_writing,Unknown
+watching_tv_smoking,Unknown
+doing_dishes,Unknown
+watching_tv,Unknown
+dressing,Changing Clothes
+handling,Unknown
+washing_body,Unknown
+pushing_up,Pressure Relief
+assisted_propulsion_and_conversation,Unknown
+handelng_phone,Using Phone
+wheelchair_to_car,Transfer
+using_computer,Using Computer
+sitting_car,Unknown
+sit_to_lying,Transfer
+self_propulsion,Self Propulsion
+workout_prep,Unknown
+handling_shelf,Unknown
+opening_door,Unknown
+washing_face,Unknown
+take_off_clothes,Changing Clothes
+handling_door,Unknown
+blowing_nose,Unknown
+handling_and_conversation,Talking
+washing_hands,Washing Hands
+using_pc_and_eating,Unknown
+using_phone_and_eatting,Unknown
+manipulating,Unknown
+wheelchair_left_alone,Unknown
+opening_shelf,Unknown
+handling_wheelchair,Unknown
+lying,Resting
+beard_hair_styling,Unknown
+skin_care,Unknown
+assisted_propulsion,Assisted Propulsion
+brushing_teeth,Unknown
+using_phone_table,Using Phone
+lying_to_sit,Transfer
+opening_window,Unknown
+conversation_and_eating,Talking
+put_on_clothes,Changing Clothes
+eating_and_conversation,Talking
+reading,Unknown
+putting_toothpaste,Unknown
+office_work,Unknown
+manipulating_oven,Unknown
+watching_tv_eating,Unknown
+wearing_glasses,Unknown
+assisted_care,Unknown
+car_to_wheelchair,Transfer
+preparing_meal,Unknown
+toilet_rountine,Unknown
+bending,Unknown
+watching_tv_sitting_table,Unknown
+pressure_relief,Pressure Relief
+pressure_release,Pressure Relief
+gardening,Unknown
+smoking,Unknown
+sitting_table_reading,Unknown
+sit_bed_to_wheelchair,Transfer
+rinsing_mouth,Unknown
+wheelchair_in_trunk,Unknown
+dark,Unknown
+toilet_routine,Unknown
+clearning_teeth,Unknown
+car,Unknown
+shampoo,Unknown
+sitting_table_eating,Eating
+sit_bed,Resting
+sitting_bed_to_wheelchair,Transfer
+excercising,Unknown
+scratching_back,Unknown
+arm_raises,Arm Raises
+turning_bed_counter_clockwise,Unknown
+writing,Unknown
+conversation_and_eatting,Unknown
+talking_phone,Talking
+working,Unknown
+sitting_wheelchair,Resting
+cooking,Unknown
+driving_car,Unknown
+drying_hair,Unknown
+handling_object,Unknown
+closing_door,Unknown
+sync_event,Unknown
+driving_train,Unknown
+sitting_table,Resting
+drinking,Eating
+black_video,Unknown
+workout,Unknown
+waiting,Resting
+lying_for_medical_procedure,Unknown
+eating,Eating
+folding_clothes,Unknown
+conversation_smoking,Talking
+working_table,Unknown
+conversation_and_drinking,Talking
+puttting_on_jacket,Changing Clothes
+getting_coffee,Unknown
+brushing_hair,Unknown
+conversation_and_phones,Unknown
+undressing,Changing Clothes
+self_propulsion_and_conversation,Self Propulsion
+housework,Unknown
+assisted_propulsion_and_using_phone,Unknown
+wheelchair _in_storage,Unknown
+bed_to_wheelchair,Transfer
+shaking_hand,Unknown
+sitting_table_using_phone,Using Phone
+driving,Unknown
+using_phones,Using Phone
+camera_setup,Unknown
+conversation_and_reading,Talking
+conversation_and_eating,Talking
+conversation_and_smoking,Talking
+crafting,Unknown
+handling_fridge,Unknown
+medical_procedure,Unknown
+nurse_treatment,Unknown
+sitting_couch,Resting
+sitting_table_smoking,Resting
+smoking_and_conversation,Unknown
+time_sync,Unknown
+using_phone_and_eating,Unknown
+converastion_and_eating,Talking
+arm_sleeve,Changing Clothes
+chair_to_wheelchair,Transfer
+cycling,Unknown
+reading_newspaper,Unknown
+wheelchair_to_chair,Transfer
+assisted_propulsion_and_phone,Unknown
