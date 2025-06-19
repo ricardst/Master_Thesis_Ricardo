@@ -164,17 +164,48 @@ sensor_columns_original: # List the columns *after* renaming by raw_data_process
   - 'back_value_9'
   - 'back_value_10'
   - 'back_value_11'
+# Manually excluded subjects (these subjects' data will be completely removed)
+excluded_subjects_manual: 
+  - 'OutSense-036'
+  - 'OutSense-425'
+  - 'OutSense-515'
+
+# Excluded sensors (these sensor features will be removed from the feature matrix)
+# Use the exact sensor names as listed in 'sensor_columns_original' above
+#excluded_sensors: []
+# Example of how to exclude specific sensors:
+excluded_sensors:
+  - 'back_value_1'
+  - 'back_value_2'
+  - 'back_value_3'
+  - 'back_value_4'
+  - 'back_value_5'
+  - 'back_value_6'
+  - 'back_value_7'
+  - 'back_value_8'
+  - 'back_value_9'
+  - 'back_value_10'
+  - 'back_value_11'
+  - 'ear_acc_x'
+  - 'ear_acc_y'
+  - 'ear_acc_z'
+  - 'vivalnk_acc_x'
+  - 'vivalnk_acc_y'
+  - 'vivalnk_acc_z'
+
 # Output directory for combined cleaned data (input for feature_engineering)
 intermediate_feature_dir: 'features'
 
 # --- Stage 2: Feature Engineering (feature_engineering.py) ---
 # Reads output from Stage 1 (combined_cleaned_data.pkl)
+use_tabpfn_feature_engineering: False # Set to true to use TabPFN-specific feature engineering
 calculate_engineered_features: False # Set to true to calculate features
-window_size: 100
-window_step: 50
+window_size: 250
+window_step: 25
 target_column: 'Activity' # Column name for activity labels in input DataFrame
 subject_id_column: 'SubjectID' # Column name for subject ID in input DataFrame
 feat_eng_batch_size: 10000 # Batch size for feature calculation
+save_intermediate_arrays: False # Set to true when using TabPFN version for compatibility
 plotting_config: # New section for window plotting
   enable_window_plotting: False
   window_plots_output_dir: 'window_plots' # Relative to results_dir
@@ -200,7 +231,7 @@ pyimpetus_cv: 0
 use_engineered_features: False
 test_subjects:
   - 'OutSense-293'
-  - 'OutSense-785'
+  - 'OutSense-608'
 batch_size: 32
 num_workers: 0
 
@@ -221,6 +252,7 @@ model_params:
 n_epochs: 50
 fen_lr: 0.001 # Separate LR for FEN
 fln_lr: 0.001 # Separate LR for FLN
+use_early_stopping: True # ADDED: Toggle for early stopping
 early_stopping_patience: 5
 early_stopping_metric: 'val_acc' # Monitor validation accuracy ('val_loss' also possible)
 
@@ -241,6 +273,7 @@ evaluation_metrics:
   - 'confusion_matrix'
   - 'roc_auc'
   - 'pr_auc'
+
 
 # Misc
 visualize_model_onnx: False

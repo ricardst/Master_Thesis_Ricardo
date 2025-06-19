@@ -399,15 +399,15 @@ OutSense-785:
     shift: 1
     unit: s
     drift:
-      t0: "2024-01-30 07:43:49" # Note: Time differs slightly from accelerometer
-      t1: "2024-02-01 15:22:48" # Note: Time differs slightly from accelerometer
+      t0: "2024-01-30 07:43:49" 
+      t1: "2024-02-01 15:22:48" 
       drift_secs: 1
   vivalnk_vv330_acceleration:
     shift: 1
     unit: s
     drift:
-      t0: "2024-01-30 07:43:49" # Note: Time differs slightly from accelerometer
-      t1: "2024-02-01 15:22:48" # Note: Time differs slightly from accelerometer
+      t0: "2024-01-30 07:43:49" 
+      t1: "2024-02-01 15:22:48" 
       drift_secs: -4
   cosinuss_ear_acc_x_acc_y_acc_z:
     shift: 0
@@ -586,14 +586,14 @@ OutSense-284:
     unit: ms
     drift:
       t0: "2023-12-13 09:22:13"
-      t1: "2023-12-15 10:18:35" # Note: t1 slightly different
+      t1: "2023-12-15 10:18:35" 
       drift_secs: 12
   mbient_imu_wc_accelerometer:
     shift: 24
     unit: ms
     drift:
       t0: "2023-12-13 09:22:13"
-      t1: "2023-12-15 10:18:35" # Note: t1 slightly different
+      t1: "2023-12-15 10:18:35"
       drift_secs: 12
   sensomative_bottom_logger:
     shift: 0
@@ -608,7 +608,7 @@ OutSense-284:
     unit: s
     drift:
       t0: "2023-12-13 09:22:13"
-      t1: "2023-12-15 10:18:35" # Note: t1 slightly different
+      t1: "2023-12-15 10:18:35" 
       drift_secs: -5
   cosinuss_ear_acc_x_acc_y_acc_z:
     shift: 0
@@ -655,7 +655,7 @@ OutSense-293:
     unit: s
     drift:
       t0: "2024-05-28 13:12:10"
-      t1: "2024-05-30 10:18:35" # Note: t1 slightly different
+      t1: "2024-05-30 10:18:35" 
       drift_secs: -5
   cosinuss_ear_acc_x_acc_y_acc_z:
     shift: 0

@@ -24,6 +24,7 @@ try:
     import raw_data_processor
     import data_loader
     import feature_engineering
+    import feature_engineering_tabpfn
     import feature_selector
     import data_preparation
     import models # Needed indirectly by training/evaluation to load model class
@@ -175,26 +176,84 @@ def main():
                      logging.error("Original feature columns list not found in stage outputs. Cannot proceed.")
                      raise ValueError("Missing original feature columns list.")
 
-                # Define expected output paths for checking/skipping
+                # Determine which feature engineering script to use
+                use_tabpfn_version = cfg.get('use_tabpfn_feature_engineering', False)
                 feature_dir = os.path.join(project_root, cfg.get('intermediate_feature_dir', 'features'))
-                expected_outputs = {
-                    'X_windows_raw': os.path.join(feature_dir, 'X_windows_raw.npy'),
-                    'engineered_features': os.path.join(feature_dir, 'engineered_features.npy'),
-                    'y_windows': os.path.join(feature_dir, 'y_windows.npy'),
-                    'subject_ids_windows': os.path.join(feature_dir, 'subject_ids_windows.npy'),
-                    'engineered_feature_names': os.path.join(feature_dir, 'engineered_feature_names.pkl'),
-                    'original_feature_names': os.path.join(feature_dir, 'original_feature_names.pkl')
-                }
-                outputs_exist = all(os.path.exists(p) for p in expected_outputs.values())
-
-                if not force_this_stage and outputs_exist:
-                     logging.warning(f"Outputs exist for '{stage_name}'. Skipping execution.")
-                     stage_outputs.update(expected_outputs) # Store paths anyway
+                
+                if use_tabpfn_version:
+                    logging.info("Using TabPFN-specific feature engineering script...")
+                    # Define expected outputs for TabPFN version with different names
+                    expected_outputs = {
+                        'tabular_dataframe_for_tabpfn': os.path.join(feature_dir, 'tabular_features_for_tabpfn.pkl'),
+                        'X_windows_raw': os.path.join(feature_dir, 'X_windows_raw_tabpfn.npy'),
+                        'engineered_features': os.path.join(feature_dir, 'engineered_features_tabpfn.npy'),
+                        'y_windows': os.path.join(feature_dir, 'y_windows_tabpfn.npy'),
+                        'subject_ids_windows': os.path.join(feature_dir, 'subject_ids_windows_tabpfn.npy'),
+                        'engineered_feature_names': os.path.join(feature_dir, 'engineered_feature_names_tabpfn.pkl'),
+                        'original_feature_names': os.path.join(feature_dir, 'original_feature_names_tabpfn.pkl'),
+                        'window_start_times': os.path.join(feature_dir, 'window_start_times_tabpfn.npy'),
+                        'window_end_times': os.path.join(feature_dir, 'window_end_times_tabpfn.npy')
+                    }
+                    
+                    # Check if TabPFN outputs exist (primary check is the tabular dataframe)
+                    primary_output = expected_outputs['tabular_dataframe_for_tabpfn']
+                    outputs_exist = os.path.exists(primary_output)
+                    
+                    if not force_this_stage and outputs_exist:
+                        logging.warning(f"TabPFN output exists for '{stage_name}': {primary_output}. Skipping execution.")
+                        stage_outputs.update(expected_outputs)
+                    else:
+                        # Modify config to use TabPFN-specific output names
+                        cfg_tabpfn = cfg.copy()
+                        cfg_tabpfn['save_intermediate_arrays'] = True  # Force saving intermediate arrays for compatibility
+                        
+                        output_paths = feature_engineering_tabpfn.run_feature_engineering(
+                            stage_outputs['processed_dataframe_path'], cfg_tabpfn
+                        )
+                        
+                        # Rename outputs to have TabPFN suffix to avoid conflicts
+                        renamed_outputs = {}
+                        for key, path in output_paths.items():
+                            if key == 'tabular_dataframe_for_tabpfn':
+                                renamed_outputs[key] = path  # Keep this name as is
+                            else:
+                                # Add _tabpfn suffix to other files
+                                base_dir = os.path.dirname(path)
+                                filename = os.path.basename(path)
+                                name, ext = os.path.splitext(filename)
+                                new_filename = f"{name}_tabpfn{ext}"
+                                new_path = os.path.join(base_dir, new_filename)
+                                
+                                # Rename the file if it exists
+                                if os.path.exists(path):
+                                    os.rename(path, new_path)
+                                    renamed_outputs[key] = new_path
+                                    logging.info(f"Renamed {path} to {new_path}")
+                        
+                        stage_outputs.update(renamed_outputs)
                 else:
-                     output_paths = feature_engineering.run_feature_engineering(
-                          stage_outputs['processed_dataframe_path'], cfg
-                     )
-                     stage_outputs.update(output_paths) # Store paths to generated files
+                    logging.info("Using standard feature engineering script...")
+                    # Standard feature engineering outputs
+                    expected_outputs = {
+                        'X_windows_raw': os.path.join(feature_dir, 'X_windows_raw.npy'),
+                        'engineered_features': os.path.join(feature_dir, 'engineered_features.npy'),
+                        'y_windows': os.path.join(feature_dir, 'y_windows.npy'),
+                        'subject_ids_windows': os.path.join(feature_dir, 'subject_ids_windows.npy'),
+                        'engineered_feature_names': os.path.join(feature_dir, 'engineered_feature_names.pkl'),
+                        'original_feature_names': os.path.join(feature_dir, 'original_feature_names.pkl'),
+                        'window_start_times': os.path.join(feature_dir, 'window_start_times.npy'),
+                        'window_end_times': os.path.join(feature_dir, 'window_end_times.npy')
+                    }
+                    outputs_exist = all(os.path.exists(p) for p in expected_outputs.values())
+
+                    if not force_this_stage and outputs_exist:
+                         logging.warning(f"Outputs exist for '{stage_name}'. Skipping execution.")
+                         stage_outputs.update(expected_outputs) # Store paths anyway
+                    else:
+                         output_paths = feature_engineering.run_feature_engineering(
+                              stage_outputs['processed_dataframe_path'], cfg
+                         )
+                         stage_outputs.update(output_paths) # Store paths to generated files
 
 
             elif stage_name == 'feature_selection':
@@ -204,6 +263,13 @@ def main():
                     # Store the expected *output* path even if not run, as data_prep might look for it
                     results_dir_fs = os.path.join(project_root, cfg.get('results_dir', 'results'))
                     output_filename = cfg.get('feature_selection_output_file', 'selected_features_pyimpetus.pkl')
+                    
+                    # Add suffix if using TabPFN version
+                    use_tabpfn_version = cfg.get('use_tabpfn_feature_engineering', False)
+                    if use_tabpfn_version:
+                        name, ext = os.path.splitext(output_filename)
+                        output_filename = f"{name}_tabpfn{ext}"
+                    
                     stage_outputs['selected_features_path'] = os.path.join(results_dir_fs, output_filename)
                     continue # Skip to next stage
 
@@ -214,6 +280,13 @@ def main():
                      raise FileNotFoundError("Input for feature selection not available.")
 
                 output_filename = cfg.get('feature_selection_output_file', 'selected_features_pyimpetus.pkl')
+                
+                # Add suffix if using TabPFN version
+                use_tabpfn_version = cfg.get('use_tabpfn_feature_engineering', False)
+                if use_tabpfn_version:
+                    name, ext = os.path.splitext(output_filename)
+                    output_filename = f"{name}_tabpfn{ext}"
+                
                 expected_output_path = os.path.join(project_root, cfg.get('results_dir', 'results'), output_filename)
 
                 if not force_this_stage and os.path.exists(expected_output_path):
@@ -228,6 +301,18 @@ def main():
                         config=cfg
                     )
                     if saved_path:
+                        # Rename output file to include TabPFN suffix if needed
+                        if use_tabpfn_version and os.path.exists(saved_path):
+                            base_dir = os.path.dirname(saved_path)
+                            filename = os.path.basename(saved_path)
+                            name, ext = os.path.splitext(filename)
+                            if not name.endswith('_tabpfn'):
+                                new_filename = f"{name}_tabpfn{ext}"
+                                new_path = os.path.join(base_dir, new_filename)
+                                os.rename(saved_path, new_path)
+                                saved_path = new_path
+                                logging.info(f"Renamed feature selection output to: {new_path}")
+                        
                         stage_outputs['selected_features_path'] = saved_path
                     else:
                         # Handle FS failure - maybe default to no selection?
@@ -243,15 +328,20 @@ def main():
 
                 # Define expected output paths
                 prep_data_dir = os.path.join(project_root, cfg.get('results_dir', 'results'), 'prepared_data')
+                
+                # Add suffix if using TabPFN version
+                use_tabpfn_version = cfg.get('use_tabpfn_feature_engineering', False)
+                suffix = '_tabpfn' if use_tabpfn_version else ''
+                
                 expected_prep_outputs = {
-                    'X_train': os.path.join(prep_data_dir, 'X_train.npy'),
-                    'y_train': os.path.join(prep_data_dir, 'y_train.npy'),
-                    'X_test': os.path.join(prep_data_dir, 'X_test.npy'),
-                    'y_test': os.path.join(prep_data_dir, 'y_test.npy'),
-                    'scaler': os.path.join(prep_data_dir, 'scaler.pkl'),
-                    'label_encoder': os.path.join(prep_data_dir, 'label_encoder.pkl'),
-                    'train_subject_ids': os.path.join(prep_data_dir, 'train_subject_ids.npy'),
-                    'summary': os.path.join(prep_data_dir, 'data_summary.pkl')
+                    'X_train': os.path.join(prep_data_dir, f'X_train{suffix}.npy'),
+                    'y_train': os.path.join(prep_data_dir, f'y_train{suffix}.npy'),
+                    'X_test': os.path.join(prep_data_dir, f'X_test{suffix}.npy'),
+                    'y_test': os.path.join(prep_data_dir, f'y_test{suffix}.npy'),
+                    'scaler': os.path.join(prep_data_dir, f'scaler{suffix}.pkl'),
+                    'label_encoder': os.path.join(prep_data_dir, f'label_encoder{suffix}.pkl'),
+                    'train_subject_ids': os.path.join(prep_data_dir, f'train_subject_ids{suffix}.npy'),
+                    'summary': os.path.join(prep_data_dir, f'data_summary{suffix}.pkl')
                 }
                 prep_outputs_exist = all(os.path.exists(p) for p in expected_prep_outputs.values())
 
@@ -266,8 +356,13 @@ def main():
                     logging.warning(f"Outputs exist for '{stage_name}'. Skipping execution.")
                     stage_outputs.update(expected_prep_outputs) # Store paths
                 else:
+                    # Modify config to use suffix for output files if needed
+                    cfg_prep = cfg.copy()
+                    if use_tabpfn_version:
+                        cfg_prep['output_file_suffix'] = '_tabpfn'
+                    
                     prep_output_paths = data_preparation.run_data_preparation(
-                        config=cfg,
+                        config=cfg_prep,
                         x_windows_raw_path=stage_outputs['X_windows_raw'],
                         engineered_features_path=stage_outputs['engineered_features'],
                         y_windows_path=stage_outputs['y_windows'],
@@ -276,7 +371,28 @@ def main():
                         engineered_names_path=stage_outputs['engineered_feature_names'],
                         selected_features_path=sel_feat_path_input # Pass the potentially None path
                     )
-                    stage_outputs.update(prep_output_paths)
+                    
+                    # If using TabPFN, rename outputs to have suffix
+                    if use_tabpfn_version:
+                        renamed_outputs = {}
+                        for key, path in prep_output_paths.items():
+                            base_dir = os.path.dirname(path)
+                            filename = os.path.basename(path)
+                            name, ext = os.path.splitext(filename)
+                            if not name.endswith('_tabpfn'):
+                                new_filename = f"{name}_tabpfn{ext}"
+                                new_path = os.path.join(base_dir, new_filename)
+                                if os.path.exists(path):
+                                    os.rename(path, new_path)
+                                    renamed_outputs[key] = new_path
+                                    logging.info(f"Renamed {path} to {new_path}")
+                                else:
+                                    renamed_outputs[key] = new_path
+                            else:
+                                renamed_outputs[key] = path
+                        stage_outputs.update(renamed_outputs)
+                    else:
+                        stage_outputs.update(prep_output_paths)
 
 
             elif stage_name == 'training':
@@ -286,14 +402,37 @@ def main():
                      raise FileNotFoundError("Input for training not available.")
 
                 model_name = cfg.get('model_name', 'Simple1DCNN')
-                expected_output_path = os.path.join(project_root, cfg.get('results_dir', 'results'), f"{model_name}_final_state_dict.pt")
+                
+                # Add suffix if using TabPFN version
+                use_tabpfn_version = cfg.get('use_tabpfn_feature_engineering', False)
+                suffix = '_tabpfn' if use_tabpfn_version else ''
+                
+                expected_output_path = os.path.join(project_root, cfg.get('results_dir', 'results'), f"{model_name}_final_state_dict{suffix}.pt")
 
                 if not force_this_stage and os.path.exists(expected_output_path):
                      logging.warning(f"Output exists for '{stage_name}': {expected_output_path}. Skipping execution.")
                      stage_outputs['trained_model_path'] = expected_output_path
                 else:
+                     # Modify config to use suffix for output files if needed
+                     cfg_train = cfg.copy()
+                     if use_tabpfn_version:
+                         cfg_train['output_file_suffix'] = '_tabpfn'
+                     
                      # Pass the dictionary of prepared data paths directly
-                     model_save_path = training.run_training(cfg, stage_outputs)
+                     model_save_path = training.run_training(cfg_train, stage_outputs)
+                     
+                     # If using TabPFN, rename output to have suffix if needed
+                     if use_tabpfn_version and os.path.exists(model_save_path):
+                         base_dir = os.path.dirname(model_save_path)
+                         filename = os.path.basename(model_save_path)
+                         name, ext = os.path.splitext(filename)
+                         if not name.endswith('_tabpfn'):
+                             new_filename = f"{name}_tabpfn{ext}"
+                             new_path = os.path.join(base_dir, new_filename)
+                             os.rename(model_save_path, new_path)
+                             model_save_path = new_path
+                             logging.info(f"Renamed trained model to: {new_path}")
+                     
                      stage_outputs['trained_model_path'] = model_save_path
 
 

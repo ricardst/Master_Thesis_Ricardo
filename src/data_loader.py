@@ -129,10 +129,11 @@ def run_loading_and_preprocessing(config, input_dir):
 
 
     # --- Remap activity labels using an external mapping file ---
-    mapping_file = config.get('activity_mapping_file', "Activity_Mapping.csv")
+    #mapping_file = config.get('activity_mapping_file', "Activity_Mapping.csv")
+    mapping_file = "/scai_data3/scratch/stirnimann_r/Activity_Mapping.csv"
     target_col = config.get('target_column', 'Activity')
 
-    if os.path.exists(mapping_file):
+    if mapping_file is not None and os.path.exists(mapping_file):
         try:
             mapping_df = pd.read_csv(mapping_file)
             # Create a dictionary for mapping: {Former_Label: New_Label}
@@ -289,7 +290,7 @@ if __name__ == '__main__':
         utils.set_seed(cfg.get('seed_number', 42))
 
         # Execute the main function of this module
-        output_file_path, feature_cols = run_loading_and_preprocessing(cfg)
+        output_file_path, feature_cols = run_loading_and_preprocessing(cfg, input_dir=cfg.get('cleaned_data_input_dir'))
         logging.info(f"Data loading and preprocessing complete. Output saved to: {output_file_path}")
         logging.info(f"Feature columns used: {feature_cols}")
 

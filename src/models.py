@@ -4,6 +4,7 @@ import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.utils import weight_norm # For TemporalBlock
 
 # -----------------------------
 # Model Definition(s)
@@ -292,6 +293,382 @@ class GeARFEN(nn.Module):
         # Pass through FLN
         x_final = self.fln(x_permuted) # -> (batch, num_classes)
         return x_final
+
+# --- TCN Building Blocks (adapted from tcn_activity_classification.py) ---
+class Chomp1d(nn.Module):
+    def __init__(self, chomp_size):
+        super(Chomp1d, self).__init__()
+        self.chomp_size = chomp_size
+
+    def forward(self, x):
+        """
+        Removes the last 'chomp_size' elements from the temporal dimension.
+        """
+        return x[:, :, :-self.chomp_size].contiguous()
+
+class TemporalBlock(nn.Module):
+    def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding, dropout=0.2):
+        super(TemporalBlock, self).__init__()
+        self.conv1 = weight_norm(nn.Conv1d(n_inputs, n_outputs, kernel_size,
+                                           stride=stride, padding=padding, dilation=dilation))
+        self.chomp1 = Chomp1d(padding)
+        self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(dropout)
+
+        self.conv2 = weight_norm(nn.Conv1d(n_outputs, n_outputs, kernel_size,
+                                           stride=stride, padding=padding, dilation=dilation))
+        self.chomp2 = Chomp1d(padding)
+        self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(dropout)
+
+        self.net = nn.Sequential(self.conv1, self.chomp1, self.relu1, self.dropout1,
+                                 self.conv2, self.chomp2, self.relu2, self.dropout2)
+        self.downsample = nn.Conv1d(n_inputs, n_outputs, 1) if n_inputs != n_outputs else None
+        self.relu = nn.ReLU()
+        self.init_weights()
+
+    def init_weights(self):
+        self.conv1.weight.data.normal_(0, 0.01)
+        self.conv2.weight.data.normal_(0, 0.01)
+        if self.downsample is not None:
+            self.downsample.weight.data.normal_(0, 0.01)
+
+    def forward(self, x):
+        out = self.net(x)
+        res = x if self.downsample is None else self.downsample(x)
+        return self.relu(out + res)
+
+class TemporalConvNet(nn.Module):
+    """
+    Base Temporal Convolutional Network (TCN) consisting of multiple TemporalBlocks.
+    """
+    def __init__(self, num_inputs, num_channels, kernel_size=2, dropout=0.2):
+        super(TemporalConvNet, self).__init__()
+        layers = []
+        num_levels = len(num_channels)
+        for i in range(num_levels):
+            dilation_size = 2 ** i
+            in_channels = num_inputs if i == 0 else num_channels[i-1]
+            out_channels = num_channels[i]
+            layers += [TemporalBlock(in_channels, out_channels, kernel_size, stride=1, dilation=dilation_size,
+                                     padding=(kernel_size-1) * dilation_size, dropout=dropout)]
+        self.network = nn.Sequential(*layers)
+
+    def forward(self, x):
+        # Input x shape: (batch_size, num_features, seq_len)
+        return self.network(x)
+
+# --- New TCN-based Model Architectures ---
+
+class MSTCN(nn.Module):
+    """Multi-Scale TCN (MS-TCN)"""
+    def __init__(self, num_inputs, num_classes, tcn_num_channels_list, kernel_sizes, dropout=0.2):
+        super(MSTCN, self).__init__()
+        logging.info(f"Initializing MS-TCN with num_inputs={num_inputs}, num_classes={num_classes}, kernel_sizes={kernel_sizes}")
+        self.branches = nn.ModuleList()
+        for i, kernel_size in enumerate(kernel_sizes):
+            # Potentially use a different num_channels for each branch or share
+            num_channels_for_branch = tcn_num_channels_list[i] if isinstance(tcn_num_channels_list[0], list) else tcn_num_channels_list
+            self.branches.append(
+                TemporalConvNet(num_inputs, num_channels_for_branch, kernel_size=kernel_size, dropout=dropout)
+            )
+        
+        # Calculate the combined feature size from all branches
+        # Assumes last channel count in num_channels_for_branch is the output feature count for that branch
+        combined_feature_size = 0
+        for i, branch in enumerate(self.branches):
+            num_channels_for_branch = tcn_num_channels_list[i] if isinstance(tcn_num_channels_list[0], list) else tcn_num_channels_list
+            combined_feature_size += num_channels_for_branch[-1]
+            
+        self.fc = nn.Linear(combined_feature_size, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+
+    def forward(self, x):
+        # x shape: (batch_size, num_inputs, seq_len)
+        branch_outputs = []
+        for branch in self.branches:
+            out = branch(x) # (batch_size, branch_out_channels, seq_len)
+            branch_outputs.append(out[:, :, -1]) # Take last time step or use adaptive pooling
+        
+        combined = torch.cat(branch_outputs, dim=1) # (batch_size, combined_feature_size)
+        return self.fc(combined)
+
+class MBTCN(nn.Module):
+    """Multi-Branch TCN (MB-TCN) - Assuming branches operate on the same full input for now"""
+    def __init__(self, num_inputs, num_classes, num_branches, tcn_num_channels_per_branch, kernel_size_per_branch, dropout=0.2):
+        super(MBTCN, self).__init__()
+        logging.info(f"Initializing MB-TCN with num_inputs={num_inputs}, num_classes={num_classes}, num_branches={num_branches}")
+        self.branches = nn.ModuleList()
+        
+        if not isinstance(tcn_num_channels_per_branch[0], list):
+             tcn_num_channels_per_branch = [tcn_num_channels_per_branch] * num_branches
+        if not isinstance(kernel_size_per_branch, list):
+            kernel_size_per_branch = [kernel_size_per_branch] * num_branches
+
+        for i in range(num_branches):
+            self.branches.append(
+                TemporalConvNet(num_inputs, tcn_num_channels_per_branch[i], kernel_size=kernel_size_per_branch[i], dropout=dropout)
+            )
+        
+        combined_feature_size = sum(ch_list[-1] for ch_list in tcn_num_channels_per_branch)
+        self.fc = nn.Linear(combined_feature_size, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+
+    def forward(self, x):
+        branch_outputs = []
+        for branch in self.branches:
+            out = branch(x)
+            branch_outputs.append(out[:, :, -1]) # Or adaptive pooling: F.adaptive_avg_pool1d(out, 1).squeeze(-1)
+        
+        combined = torch.cat(branch_outputs, dim=1)
+        return self.fc(combined)
+
+class HybridTCNRNN(nn.Module):
+    """Hybrid TCN-RNN (LSTM/GRU)"""
+    def __init__(self, num_inputs, num_classes, tcn_num_channels, tcn_kernel_size, rnn_type, rnn_hidden_size, rnn_num_layers, rnn_dropout=0.2, tcn_dropout=0.2, bidirectional=True):
+        super(HybridTCNRNN, self).__init__()
+        logging.info(f"Initializing HybridTCNRNN with num_inputs={num_inputs}, num_classes={num_classes}, rnn_type={rnn_type}")
+        self.tcn = TemporalConvNet(num_inputs, tcn_num_channels, kernel_size=tcn_kernel_size, dropout=tcn_dropout)
+        tcn_output_features = tcn_num_channels[-1]
+
+        if rnn_type.lower() == 'lstm':
+            self.rnn = nn.LSTM(tcn_output_features, rnn_hidden_size, rnn_num_layers, 
+                               batch_first=True, dropout=rnn_dropout, bidirectional=bidirectional)
+        elif rnn_type.lower() == 'gru':
+            self.rnn = nn.GRU(tcn_output_features, rnn_hidden_size, rnn_num_layers,
+                              batch_first=True, dropout=rnn_dropout, bidirectional=bidirectional)
+        else:
+            raise ValueError("Unsupported RNN type. Choose 'lstm' or 'gru'.")
+
+        fc_input_size = rnn_hidden_size * 2 if bidirectional else rnn_hidden_size
+        self.fc = nn.Linear(fc_input_size, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+        # Initialize RNN weights (optional, often default is fine)
+        for name, param in self.rnn.named_parameters():
+            if 'weight_ih' in name:
+                torch.nn.init.xavier_uniform_(param.data)
+            elif 'weight_hh' in name:
+                torch.nn.init.orthogonal_(param.data)
+            elif 'bias' in name:
+                param.data.fill_(0)
+
+    def forward(self, x):
+        # x shape: (batch_size, num_inputs, seq_len)
+        tcn_out = self.tcn(x) # (batch_size, tcn_output_features, seq_len)
+        tcn_out_permuted = tcn_out.permute(0, 2, 1) # (batch_size, seq_len, tcn_output_features)
+        
+        rnn_out, _ = self.rnn(tcn_out_permuted) # (batch_size, seq_len, rnn_hidden_size * num_directions)
+        
+        # Use the output of the last time step
+        last_time_step_out = rnn_out[:, -1, :] # (batch_size, rnn_hidden_size * num_directions)
+        return self.fc(last_time_step_out)
+
+class Attention(nn.Module):
+    """Simple Scaled Dot-Product Attention layer."""
+    def __init__(self, feature_dim, use_softmax=True):
+        super(Attention, self).__init__()
+        self.feature_dim = feature_dim
+        self.use_softmax = use_softmax
+        # Learnable query, or use input itself for self-attention context
+        self.query = nn.Parameter(torch.randn(feature_dim, 1)) 
+        nn.init.xavier_uniform_(self.query)
+
+    def forward(self, x_seq):
+        # x_seq shape: (batch_size, seq_len, feature_dim)
+        # Simplified: use a fixed query or learnable query vector
+        # For self-attention, Q, K, V would be derived from x_seq
+        # Here, let's do a weighted sum based on similarity to a learnable query
+        
+        # scores = torch.matmul(x_seq, self.query).squeeze(-1) # (batch_size, seq_len)
+        # A common way for channel/feature attention on TCN output (batch, channels, seq_len)
+        # If x_seq is (batch, channels, seq_len) -> permute to (batch, seq_len, channels)
+        # For now, let's assume input is (batch, seq_len, features)
+        
+        # A simpler attention: learn weights for each feature vector in sequence
+        attention_scores = torch.matmul(x_seq, self.query).squeeze(-1) # (Batch, SeqLen)
+        
+        if self.use_softmax:
+            attention_weights = F.softmax(attention_scores, dim=1) # (Batch, SeqLen)
+        else: # e.g. for some channel attention mechanisms
+            attention_weights = torch.sigmoid(attention_scores)
+
+        # Weighted sum: (Batch, SeqLen, Features) * (Batch, SeqLen, 1) -> sum over SeqLen
+        weighted_sum = torch.sum(x_seq * attention_weights.unsqueeze(-1), dim=1) # (Batch, Features)
+        return weighted_sum, attention_weights
+
+
+class MCATCN(nn.Module):
+    """TCN with Multi-Channel Attention (MCA-TCN) - Simplified: Attention over TCN output features"""
+    def __init__(self, num_inputs, num_classes, tcn_num_channels, tcn_kernel_size, tcn_dropout=0.2, attention_type='channel'):
+        super(MCATCN, self).__init__()
+        logging.info(f"Initializing MCA-TCN with num_inputs={num_inputs}, num_classes={num_classes}, attention_type={attention_type}")
+        self.tcn = TemporalConvNet(num_inputs, tcn_num_channels, kernel_size=tcn_kernel_size, dropout=tcn_dropout)
+        tcn_output_features = tcn_num_channels[-1]
+        self.attention_type = attention_type
+
+        if self.attention_type == 'temporal':
+            # Attention over the temporal dimension of TCN output
+            self.attention = Attention(tcn_output_features) # Expects (batch, seq_len, features)
+        elif self.attention_type == 'channel':
+            # Attention over the channel dimension of TCN output
+            # This is a common interpretation: Squeeze-and-Excitation like
+            self.channel_attention_fc1 = nn.Linear(tcn_output_features, tcn_output_features // 4)
+            self.channel_attention_fc2 = nn.Linear(tcn_output_features // 4, tcn_output_features)
+        else:
+            raise ValueError("attention_type must be 'temporal' or 'channel'")
+            
+        self.fc = nn.Linear(tcn_output_features, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+        if self.attention_type == 'channel':
+            nn.init.xavier_uniform_(self.channel_attention_fc1.weight)
+            nn.init.xavier_uniform_(self.channel_attention_fc2.weight)
+
+
+    def forward(self, x):
+        # x shape: (batch_size, num_inputs, seq_len)
+        tcn_out = self.tcn(x) # (batch_size, tcn_output_features, seq_len)
+
+        if self.attention_type == 'temporal':
+            tcn_out_permuted = tcn_out.permute(0, 2, 1) # (batch_size, seq_len, tcn_output_features)
+            attended_features, _ = self.attention(tcn_out_permuted) # (batch_size, tcn_output_features)
+        elif self.attention_type == 'channel':
+            # Squeeze: Global Average Pooling over time
+            squeeze = F.adaptive_avg_pool1d(tcn_out, 1).squeeze(-1) # (batch_size, tcn_output_features)
+            # Excitation
+            excitation = F.relu(self.channel_attention_fc1(squeeze))
+            excitation = torch.sigmoid(self.channel_attention_fc2(excitation)) # (batch_size, tcn_output_features)
+            # Apply attention: (batch, channels, seq_len) * (batch, channels, 1)
+            attended_tcn_out = tcn_out * excitation.unsqueeze(-1)
+            # Pool over time for classification
+            attended_features = F.adaptive_avg_pool1d(attended_tcn_out, 1).squeeze(-1) # (batch_size, tcn_output_features)
+        
+        return self.fc(attended_features)
+
+
+class SAMTCN(nn.Module):
+    """TCN with Self-Attention Mechanism (SAM-TCN)"""
+    def __init__(self, num_inputs, num_classes, tcn_num_channels, tcn_kernel_size, 
+                 sa_num_heads, sa_hidden_dim_factor=4, sa_dropout=0.1, tcn_dropout=0.2):
+        super(SAMTCN, self).__init__()
+        logging.info(f"Initializing SAM-TCN with num_inputs={num_inputs}, num_classes={num_classes}")
+        self.tcn = TemporalConvNet(num_inputs, tcn_num_channels, kernel_size=tcn_kernel_size, dropout=tcn_dropout)
+        tcn_output_features = tcn_num_channels[-1]
+        
+        # Transformer Encoder Layer for self-attention
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=tcn_output_features, 
+            nhead=sa_num_heads,
+            dim_feedforward=tcn_output_features * sa_hidden_dim_factor,
+            dropout=sa_dropout,
+            batch_first=True # Expects (batch, seq_len, features)
+        )
+        self.self_attention_encoder = nn.TransformerEncoder(encoder_layer, num_layers=1) # Single layer for simplicity
+        
+        self.fc = nn.Linear(tcn_output_features, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+        # TransformerEncoderLayer has its own init, often good defaults
+
+    def forward(self, x):
+        # x shape: (batch_size, num_inputs, seq_len)
+        tcn_out = self.tcn(x) # (batch_size, tcn_output_features, seq_len)
+        
+        # Permute for TransformerEncoderLayer: (batch_size, seq_len, tcn_output_features)
+        tcn_out_permuted = tcn_out.permute(0, 2, 1)
+        
+        sa_out = self.self_attention_encoder(tcn_out_permuted) # (batch_size, seq_len, tcn_output_features)
+        
+        # Use the output of the first token (like [CLS] token) or average pool
+        # Here, let's average pool over the sequence length
+        sa_out_pooled = sa_out.mean(dim=1) # (batch_size, tcn_output_features)
+        
+        return self.fc(sa_out_pooled)
+
+# NACTCN is more complex and specific; a placeholder or simplified version:
+class NACTCN(nn.Module):
+    """Neighborhood Attention TCN (NAC-TCN) - Placeholder/Simplified"""
+    def __init__(self, num_inputs, num_classes, tcn_num_channels, tcn_kernel_size, tcn_dropout=0.2, attention_neighborhood_size=5):
+        super(NACTCN, self).__init__()
+        logging.warning("NACTCN is a simplified placeholder. True NAC-TCN is more complex.")
+        logging.info(f"Initializing NACTCN (Simplified) with num_inputs={num_inputs}, num_classes={num_classes}")
+        self.tcn = TemporalConvNet(num_inputs, tcn_num_channels, kernel_size=tcn_kernel_size, dropout=tcn_dropout)
+        tcn_output_features = tcn_num_channels[-1]
+        
+        # Simplified local attention: a 1D conv acting as weighted sum over a neighborhood
+        self.local_attention_conv = nn.Conv1d(tcn_output_features, tcn_output_features, 
+                                              kernel_size=attention_neighborhood_size, 
+                                              padding=attention_neighborhood_size // 2, groups=tcn_output_features) # Depthwise-like
+        self.attention_activation = nn.Softmax(dim=-1) # Apply softmax over the neighborhood scores
+
+        self.fc = nn.Linear(tcn_output_features, num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+        self.local_attention_conv.weight.data.normal_(0, 0.01)
+
+
+    def forward(self, x):
+        # x shape: (batch_size, num_inputs, seq_len)
+        tcn_out = self.tcn(x) # (batch_size, tcn_output_features, seq_len)
+        
+        # Simplified local attention
+        # Get attention scores (weights) for each position based on its neighborhood
+        attention_scores = self.local_attention_conv(tcn_out) # (batch, features, seq_len)
+        attention_weights = self.attention_activation(attention_scores) # (batch, features, seq_len)
+        
+        # Apply attention
+        attended_out = tcn_out * attention_weights # Element-wise multiplication
+        
+        # Pool over time for classification
+        final_features = F.adaptive_avg_pool1d(attended_out, 1).squeeze(-1) # (batch_size, tcn_output_features)
+        
+        return self.fc(final_features)
+
+# --- Standard TCN Model (from tcn_activity_classification.py, for completeness if used by main pipeline) ---
+class BaseTCNModel(nn.Module):
+    """This is the TCNModel from tcn_activity_classification.py, renamed for clarity."""
+    def __init__(self, num_inputs, num_classes, num_channels_list, kernel_size=2, dropout=0.2):
+        super(BaseTCNModel, self).__init__()
+        logging.info(f"Initializing BaseTCNModel with num_inputs={num_inputs}, num_classes={num_classes}")
+        self.tcn_core = TemporalConvNet(num_inputs, num_channels_list, kernel_size=kernel_size, dropout=dropout)
+        # The TCN's output will have num_channels_list[-1] features.
+        # The output sequence length depends on input sequence length and TCN structure.
+        # For classification, usually a linear layer is added after pooling or taking the last output.
+        self.fc = nn.Linear(num_channels_list[-1], num_classes)
+        self.init_weights()
+
+    def init_weights(self):
+        self.fc.weight.data.normal_(0, 0.01)
+        self.fc.bias.data.fill_(0)
+
+    def forward(self, x):
+        # x shape: (batch_size, num_features, seq_len)
+        y = self.tcn_core(x) # Output: (batch_size, num_channels_list[-1], seq_len_out)
+        # Take the output from the last time step for classification, or use adaptive pooling
+        # y_pooled = F.adaptive_avg_pool1d(y, 1).squeeze(-1) # (batch_size, num_channels_list[-1])
+        y_last_step = y[:, :, -1] # (batch_size, num_channels_list[-1])
+        return self.fc(y_last_step)
 
 # --- Example Usage ---
 if __name__ == '__main__':
