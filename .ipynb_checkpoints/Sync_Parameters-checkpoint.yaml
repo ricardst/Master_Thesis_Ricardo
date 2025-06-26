@@ -10,129 +10,129 @@
 
 OutSense-498:
   corsano_bioz_acc:
-    shift: 3602 #3603
+    shift: 3
     unit: s  # Assuming seconds, adding unit for consistency
     drift: null # No drift correction specified
   corsano_wrist_acc:
-    shift: 3603 #3605
+    shift: 5
     unit: s   # Assume time is in seconds
     drift:
       t0: "2024-02-15 09:13:33"
       t1: "2024-02-17 13:27:49"
       drift_secs: 4
   mbient_imu_wc_gyroscope:
-    shift: 3616 #3621
+    shift: 21
     unit: ms   # Time needs /1000 conversion if needed
     drift:
       t0: "2024-02-15 09:13:33"
       t1: "2024-02-17 13:27:49"
       drift_secs: -18
   mbient_imu_wc_accelerometer:
-    shift: 3616 #3624
+    shift: 24
     unit: ms   # Time needs /1000 conversion if needed
     drift:
       t0: "2024-02-15 09:13:33"
       t1: "2024-02-17 13:27:49"
       drift_secs: -16
   sensomative_bottom_logger:
-    shift: 3601 #3600
+    shift: 0
     unit: s   # Assuming seconds
     drift: null
   vivalnk_vv330_acceleration:
-    shift: 3600 #3608
+    shift: 8
     unit: s   # Assuming seconds
     drift: null
   cosinuss_ear_acc_x_acc_y_acc_z:
-    shift: 3600 #no data
+    shift: 0
     unit: s   # Assuming seconds
     drift: null
   Label_Time_Shift: -1h 0min 0s
 
 OutSense-515:
   corsano_bioz_acc:
-    shift: 3601 #3575
+    shift: -5
     unit: s
     drift:
       t0: "2024-02-07 10:46:43"
       t1: "2024-02-09 12:27:55"
       drift_secs: 5
   corsano_wrist_acc:
-    shift: 3606 #3579
+    shift: -1
     unit: s
     drift:
       t0: "2024-02-07 10:46:43"
       t1: "2024-02-09 12:27:55"
       drift_secs: -10
   mbient_imu_wc_gyroscope:
-    shift: 3638 #3616
+    shift: 36
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-02-07 10:46:43"
       t1: "2024-02-09 12:27:55"
       drift_secs: -15
   mbient_imu_wc_accelerometer:
-    shift: 3638 #3611
+    shift: 31
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-02-07 10:46:43"
       t1: "2024-02-09 12:27:55"
       drift_secs: -12
   sensomative_bottom_logger:
-    shift: 3601 #3580
+    shift: 0
     unit: s
     drift: null
   vivalnk_vv330_acceleration:
-    shift: 3600 #3575
+    shift: -5
     unit: s
     drift: null
   cosinuss_ear_acc_x_acc_y_acc_z:
-    shift: 3580 #3580
+    shift: 0
     unit: s
     drift: null
   Label_Time_Shift: -1h 0min 20s
 
 OutSense-532:
   corsano_bioz_acc:
-    shift: 3601  #3585
+    shift: -3
     unit: s
     drift:
       t0: "2024-03-13 13:15:00"
       t1: "2024-03-15 11:11:35"
       drift_secs: 3
   corsano_wrist_acc:
-    shift: 3601  #3587
+    shift: -1
     unit: s
     drift:
       t0: "2024-03-13 13:15:00"
       t1: "2024-03-15 11:11:35"
       drift_secs: 2
   mbient_imu_wc_gyroscope:
-    shift: 3645 #3633
+    shift: 45
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-03-13 13:15:00"
       t1: "2024-03-15 11:11:35"
       drift_secs: -10
   mbient_imu_wc_accelerometer:
-    shift: 3645 #3634
+    shift: 46
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-03-13 13:15:00"
       t1: "2024-03-15 11:11:35"
       drift_secs: -10
   vivalnk_vv330_acceleration:
-    shift: 3593
+    shift: 5
     unit: s
     drift: null
   cosinuss_ear_acc_x_acc_y_acc_z:
-    shift: 3588
+    shift: 0
     unit: s
     drift: null
   Label_Time_Shift: -1h 0min 12s
 
 OutSense-608:
   corsano_bioz_acc:
-    shift: 7200
+    shift: 0
     unit: s
     drift: null
   corsano_wrist_acc:
@@ -140,32 +140,32 @@ OutSense-608:
     unit: s
     drift: null
   mbient_imu_wc_gyroscope:
-    shift: 7218
+    shift: 19
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-06-04 09:39:32"
       t1: "2024-06-06 10:57:57"
       drift_secs: -17
   mbient_imu_wc_accelerometer:
-    shift: 7218
+    shift: 18
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2024-06-04 09:39:32"
       t1: "2024-06-06 10:57:57"
       drift_secs: -15
   sensomative_bottom_logger:
-    shift: 7201 #7202
+    shift: 2
     unit: s
     drift:
       t0: "2024-06-04 09:39:32"
       t1: "2024-06-06 10:57:57"
       drift_secs: 1
   sensomative_back_logger:
-    shift: 7200 #7201
+    shift: 1
     unit: s
     drift: null
   vivalnk_vv330_acceleration:
-    shift: 7205
+    shift: 5
     unit: s
     drift:
       t0: "2024-06-04 09:39:32"
@@ -179,50 +179,50 @@ OutSense-608:
 
 OutSense-619:
   corsano_bioz_acc:
-    shift: 7196 #no data
+    shift: 7200
     unit: s
     drift:
       t0: "2023-10-03 13:24:25"
       t1: "2023-10-05 12:54:10"
       drift_secs: 3
   corsano_wrist_acc:
-    shift: 7207 #7195
+    shift: -1
     unit: s
     drift: null
   mbient_imu_wc_gyroscope:
-    shift: 7220 #7217
+    shift: 21
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2023-10-03 13:24:25"
       t1: "2023-10-05 12:54:10"
       drift_secs: -7
   mbient_imu_wc_accelerometer:
-    shift: 7220 #7210
+    shift: 14
     unit: ms   # Converted from ms to s before applying correction
     drift:
       t0: "2023-10-03 13:24:25"
       t1: "2023-10-05 12:54:10"
       drift_secs: -11
   sensomative_bottom_logger:
-    shift: 7201 #7197
+    shift: 7201
     unit: s
     drift:
       t0: "2023-10-03 13:24:25"
       t1: "2023-10-05 12:54:10"
       drift_secs: 1
   sensomative_back_logger:
-    shift: 7200 #7197
+    shift: 1
     unit: s
     drift:
       t0: "2023-10-03 13:24:25"
       t1: "2023-10-05 12:54:10"
       drift_secs: 1
   vivalnk_vv330_acceleration:
-    shift: 7201 #no data
+    shift: 5
     unit: s
     drift: null
   cosinuss_ear_acc_x_acc_y_acc_z:
-    shift: 7196 #no data
+    shift: 0
     unit: s
     drift: null
   Label_Time_Shift: -2h 0min 4s
