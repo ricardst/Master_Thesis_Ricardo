@@ -143,7 +143,7 @@ OutSense-608:
   corsano_bioz_acc:
     shift: 7202
     unit: s
-    drift: null #no data
+    drift: null 
   corsano_wrist_acc:
     shift: 7200
     unit: s
@@ -727,28 +727,28 @@ OutSense-425_48h:
     drift:
       t0: "2023-06-27 13:59:30"
       t1: "2023-06-29 13:41:40"
-      drift_secs: 2
+      drift_secs: 4 #2
   corsano_wrist_acc:
     shift: 7203 #7196
     unit: s
     drift:
       t0: "2023-06-27 13:59:30"
       t1: "2023-06-29 13:41:40"
-      drift_secs: -10
+      drift_secs: 2 #-10
   mbient_imu_wc_gyroscope:
     shift: 7217 #7221
     unit: ms
     drift:
       t0: "2023-06-27 13:59:30"
       t1: "2023-06-29 13:41:40"
-      drift_secs: -14
+      drift_secs: -12 #-14
   mbient_imu_wc_accelerometer:
     shift: 7217 #7226
     unit: ms
     drift:
       t0: "2023-06-27 13:59:30"
       t1: "2023-06-29 13:41:40"
-      drift_secs: -15
+      drift_secs: -12 #-15
   sensomative_bottom_logger:
     shift: 7200 #no data
     unit: s
