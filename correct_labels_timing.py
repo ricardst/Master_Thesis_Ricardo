@@ -36,7 +36,7 @@ def correct_timestamp_drift(timestamp_seconds, t0_seconds, t1_seconds, total_dri
     
     elapsed = timestamp_seconds - t0_seconds
     drift_offset = total_drift_seconds * (elapsed / total_interval)
-    return timestamp_seconds + drift_offset
+    return timestamp_seconds - drift_offset
 
 
 def extract_subject_id(video_filename):
@@ -148,7 +148,7 @@ def apply_time_corrections(labels_df, sync_dict):
             shift_delta = pd.Timedelta(seconds=time_shift_seconds)
             for col in time_columns:
                 if col in corrected_df.columns:
-                    corrected_df.loc[subject_mask, col] += shift_delta
+                    corrected_df.loc[subject_mask, col] -= shift_delta
             
             logging.info(f"Applied {time_shift_seconds}s time shift to subject {subject_id}")
         
@@ -165,20 +165,20 @@ def apply_time_corrections(labels_df, sync_dict):
                 
                 if pd.notna(min_time) and pd.notna(max_time):
                     # Convert to seconds since epoch for drift calculation
-                    t0_seconds = min_time.timestamp()
-                    t1_seconds = max_time.timestamp()
+                    t0 = min_time
+                    t1 = max_time
                     
                     # Apply drift correction to each timestamp
                     for col in time_columns:
                         if col in corrected_df.columns:
                             timestamps = corrected_df.loc[subject_mask, col]
                             corrected_timestamps = timestamps.apply(
-                                lambda ts: pd.Timestamp.fromtimestamp(
-                                    correct_timestamp_drift(
-                                        ts.timestamp(), t0_seconds, t1_seconds, net_drift_seconds
-                                    )
+                                lambda ts: ts - pd.to_timedelta(
+                                    net_drift_seconds * ((ts - t0).total_seconds() / (t1 - t0).total_seconds()),
+                                    unit='s'
                                 ) if pd.notna(ts) else ts
                             )
+                            
                             corrected_df.loc[subject_mask, col] = corrected_timestamps
                     
                     logging.info(f"Applied {net_drift_seconds}s drift correction to subject {subject_id}")
