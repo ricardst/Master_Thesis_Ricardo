@@ -130,7 +130,7 @@ OutSense-532:
       t1: "2024-03-15 11:11:35"
       drift_secs: -15 #-10
   vivalnk_vv330_acceleration:
-    shift: 3600 #old shift
+    shift: 3600 
     unit: s
     drift: null
   cosinuss_ear_acc_x_acc_y_acc_z:
@@ -141,11 +141,11 @@ OutSense-532:
 
 OutSense-608:
   corsano_bioz_acc:
-    shift: 7202
+    shift: 7201
     unit: s
     drift: null 
   corsano_wrist_acc:
-    shift: 7200
+    shift: 7201 #7200
     unit: s
     drift: null
   mbient_imu_wc_gyroscope:
@@ -174,7 +174,7 @@ OutSense-608:
     unit: s
     drift: null
   vivalnk_vv330_acceleration:
-    shift: 7205
+    shift: 7200
     unit: s
     drift:
       t0: "2024-06-04 09:39:30"
@@ -288,7 +288,7 @@ OutSense-652:
     drift:
       t0: "2024-12-18 10:47:30"
       t1: "2024-12-20 09:05:00"
-      drift_secs: 0 #no data
+      drift_secs: 0 
   cosinuss_ear_acc_x_acc_y_acc_z:
     shift: 3599
     unit: s
@@ -621,7 +621,7 @@ OutSense-284:
     drift:
       t0: "2023-12-13 09:22:10"
       t1: "2023-12-15 10:18:20"
-      drift_secs: 17
+      drift_secs: 0
   corsano_wrist_acc:
     shift: 3601 #3605
     unit: s
@@ -750,11 +750,11 @@ OutSense-425:
       t1: "2023-06-29 13:41:40"
       drift_secs: -12 #-15
   sensomative_bottom_logger:
-    shift: 7200 #no data
+    shift: 7200 #weird data
     unit: s
     drift: null
   sensomative_back_logger:
-    shift: 7200 #no data
+    shift: 7200 #weird data
     unit: s
     drift: null
   vivalnk_vv330_acceleration:
@@ -763,7 +763,7 @@ OutSense-425:
     drift:
       t0: "2023-06-27 13:59:30"
       t1: "2023-06-29 13:41:40"
-      drift_secs: -5
+      drift_secs: 0
   cosinuss_ear_acc_x_acc_y_acc_z:
     shift: 7200
     unit: s
